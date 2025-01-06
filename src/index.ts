@@ -22,6 +22,16 @@ const argv = yargs(hideBin(process.argv))
     type: 'string',
     description: 'RPC URL to use'
   })
+  .option('yearly-sum', {
+    alias: 'y',
+    type: 'boolean',
+    description: 'Calculate sum of balance changes for the past year'
+  })
+  .option('historical-sum', {
+    alias: 'h',
+    type: 'boolean',
+    description: 'Calculate sum of balance changes older than one year'
+  })
   .help()
   .parseSync();
 
@@ -453,7 +463,129 @@ Total accounted for: ${
   }
 };
 
+const calculateYearlySum = async () => {
+  try {
+    const now = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(now.getFullYear() - 1);
+    
+    let totalBalance = 0;
+    let totalEurValue = 0;
+    let transactionCount = 0;
+    
+    // Get all CSV files in output directory
+    const files = fs.readdirSync('output')
+      .filter(file => file.startsWith('balance_changes_') && file.endsWith('.csv'));
+    
+    for (const file of files) {
+      const content = fs.readFileSync(`output/${file}`, 'utf8');
+      const lines = content.split('\n').slice(1); // Skip header
+      
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        
+        const [dateStr, balanceChange, , , , eurValue] = line.split(';').map(s => s.replace(/"/g, ''));
+        const [day, month, year] = dateStr.split(' ')[0].split('.');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        
+        // Convert string numbers with German format to float
+        const balanceChangeNum = parseFloat(balanceChange.replace(',', '.'));
+        const eurValueNum = parseFloat(eurValue.replace(',', '.'));
+        
+        // Only consider positive balance changes (incoming transactions)
+        if (date >= oneYearAgo && date <= now && balanceChangeNum > 0) {
+          totalBalance += balanceChangeNum;
+          totalEurValue += eurValueNum;
+          transactionCount++;
+        }
+      }
+    }
+    
+    console.log('\nIncoming balance changes for the past year:');
+    console.log(`Number of incoming transactions: ${transactionCount}`);
+    console.log(`Total incoming SOL: ${totalBalance.toFixed(4)}`);
+    console.log(`Total incoming EUR value: ${totalEurValue.toFixed(2)}`);
+    
+  } catch (error) {
+    console.error('Error calculating yearly sum:', error);
+  }
+};
+
+const calculateHistoricalSum = async () => {
+  try {
+    const now = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(now.getFullYear() - 1);
+    
+    // Set time to start of day to ensure consistent comparison
+    oneYearAgo.setHours(0, 0, 0, 0);
+    
+    let totalBalance = 0;
+    let totalEurValue = 0;
+    let oldestDate: Date | null = null;
+    let transactionCount = 0;
+    
+    // Get all CSV files in output directory
+    const files = fs.readdirSync('output')
+      .filter(file => file.startsWith('balance_changes_') && file.endsWith('.csv'));
+    
+    for (const file of files) {
+      const content = fs.readFileSync(`output/${file}`, 'utf8');
+      const lines = content.split('\n').slice(1); // Skip header
+      
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        
+        const [dateStr, balanceChange, , , , eurValue] = line.split(';').map(s => s.replace(/"/g, ''));
+        const [day, month, year] = dateStr.split(' ')[0].split('.');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        // Set time to start of day to ensure consistent comparison
+        date.setHours(0, 0, 0, 0);
+        
+        // Convert string numbers with German format to float
+        const balanceChangeNum = parseFloat(balanceChange.replace(',', '.'));
+        const eurValueNum = parseFloat(eurValue.replace(',', '.'));
+        
+        // Only consider positive balance changes (incoming transactions)
+        // Using strict less than to exclude the cutoff date
+        if (date < oneYearAgo && balanceChangeNum > 0) {
+          totalBalance += balanceChangeNum;
+          totalEurValue += eurValueNum;
+          transactionCount++;
+          
+          if (!oldestDate || date < oldestDate) {
+            oldestDate = date;
+          }
+        }
+      }
+    }
+    
+    // Get the day before oneYearAgo for the end date of the period
+    const periodEndDate = new Date(oneYearAgo);
+    periodEndDate.setDate(periodEndDate.getDate() - 1);
+    
+    console.log('\nHistorical incoming balance changes (older than one year):');
+    console.log(`Period: ${oldestDate?.toLocaleDateString('de-DE')} to ${periodEndDate.toLocaleDateString('de-DE')}`);
+    console.log(`Number of incoming transactions: ${transactionCount}`);
+    console.log(`Total incoming SOL: ${totalBalance.toFixed(4)}`);
+    console.log(`Total incoming EUR value: ${totalEurValue.toFixed(2)}`);
+    
+  } catch (error) {
+    console.error('Error calculating historical sum:', error);
+  }
+};
+
 (async () => {
+  if (argv.yearlySum) {
+    await calculateYearlySum();
+    return;
+  }
+
+  if (argv.historicalSum) {
+    await calculateHistoricalSum();
+    return;
+  }
+
   await fetchSignatures();
 
   const signatures = JSON.parse(fs.readFileSync("output/signatures.json", "utf8"));

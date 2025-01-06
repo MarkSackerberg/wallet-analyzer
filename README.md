@@ -43,6 +43,8 @@ Instead of using environment variables, you can also use command line parameters
 
 - `--wallet` or `-w`: Your Solana wallet address
 - `--rpc` or `-r`: URL of your Solana RPC provider (e.g., from Metaplex Aura, QuickNode, etc.)
+- `--yearly-sum` or `-y`: Calculate sum of balance changes for the past year
+- `--historical-sum` or `-h`: Calculate sum of balance changes older than one year
 
 ## Price Data
 
@@ -85,7 +87,15 @@ pnpm run dev
 ```
 With direct parameters
 ```
-pnpm run dev -- --wallet <address> --rpc <url>
+pnpm run dev --wallet <address> --rpc <url>
+```
+Calculate yearly sum
+```
+pnpm run dev --yearly-sum
+```
+Calculate historical sum
+```
+pnpm run dev --historical-sum
 ```
 ## Error Handling
 
