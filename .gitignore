@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+out/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE/Editor specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+signatures.json
+transactions/
+analyze_errors.json
+transactions_with_errors.json
+no_balance_changes.json
+balance_changes_*.csv
+errors.json
+
+# ESLint
+.eslintcache
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Output
+output/
